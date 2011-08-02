@@ -1,0 +1,18 @@
+a, a:visited, h1 a:visited, a:active, #main .selected .actions a, #main .selected .actions a:link, #main .selected .actions a:visited, #help dt{
+	color: #1BC730;	
+}
+
+a:hover, h1 a:hover, #main .selected .actions a:hover, #main .selected .actions a:active{
+	color: #21DA6B;	
+}
+
+#wrapper button, #wrapper input[type="submit"],
+#wrapper button:active, #wrapper input[type="submit"]:active{
+	background: #39aa27 url("i/button_bg_green.png") repeat-x top left;	
+	border-color: #093;
+}
+
+#wrapper button:active, #wrapper input[type="submit"]:active {
+	background-position: 0 -32px;
+	background-color: #29a016;
+}
