@@ -569,7 +569,7 @@ function prologue_comment_depth( $comment_id ) {
 
 
 // require UpThemes Framework
-require_once('admin/functions.php');
+require_once('admin/admin.php');
 
 function branding(){
 	global $up_options;
