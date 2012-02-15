@@ -1,0 +1,3 @@
+[submodule "UpThemes-Framework"]
+	path = UpThemes-Framework
+	url = git@github.com:LiftUX/UpThemes-Framework.git
