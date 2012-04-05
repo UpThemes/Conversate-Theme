@@ -52,6 +52,27 @@
 
 		<?php endif; ?>
 	</div>
+    
+    <div class="clear"></div>
+    
+	<div class="metafooter">
+    
+    	<?php tags_with_count( '', __( '<span class="tags">' , 'p2' ) .' ', ', ', '</span>' ) ?>
+
+        <span class="actions">
+            <?php if ( !is_single() ) : ?>
+                <a href="<?php the_permalink() ?>" class="thepermalink"><?php _e( 'Permalink', 'p2' ) ?></a>
+                <?php echo post_reply_link( array( 'before' => ' ', 'after' => '',  'reply_text' => __('Reply', 'p2'), 'add_below' => 'prologue'), get_the_id() ) ?>
+            <?php else : ?>
+                <?php if( comments_open() ) echo post_reply_link( array( 'before' => '', 'after' => '',  'reply_text' => __('Reply', 'p2'), 'add_below' => 'prologue'), get_the_id() ) ?>
+            <?php endif;?>
+            
+            <?php if ( current_user_can('edit_post', get_the_id() ) ) : ?>
+                  <a href="<?php echo ( get_edit_post_link( get_the_id() ) ) ?>" class="post-edit-link" rel="<?php the_ID() ?>"><?php _e( 'Edit', 'p2' ) ?></a>
+            <?php endif; ?>
+        </span>
+        
+    </div>
 
 	<?php if ( get_comments_number() > 0 && ! post_password_required() ) : ?>
 		<div class="discussion" style="display: none">
