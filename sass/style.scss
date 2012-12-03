@@ -356,7 +356,6 @@ input#comment-submit {
 
 #main ul#postlist {
   list-style: none;
-  margin-top: 16px;
   margin-left: 0;
   background-color: #ccc;
 }
@@ -1468,6 +1467,7 @@ li {
   color: #141414;
   background: #f2f2f2 url("images/postbox_bg.jpg") repeat-x left -50px;
   @include text-shadow(0 1px 0 #fff);
+  margin-bottom: 0;
 }
 
 .single h2.transparent_title {

@@ -453,7 +453,6 @@ input#comment-submit {
 
 #main ul#postlist {
   list-style: none;
-  margin-top: 16px;
   margin-left: 0;
   background-color: #ccc;
 }
@@ -1596,6 +1595,7 @@ li.newupdates, li.newcomment {
   color: #141414;
   background: #f2f2f2 url("images/postbox_bg.jpg") repeat-x left -50px;
   text-shadow: 0 1px 0 white;
+  margin-bottom: 0;
 }
 
 .single h2.transparent_title {
