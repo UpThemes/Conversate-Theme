@@ -1,12 +1,18 @@
 <?php
-if ( !defined( 'DOING_AJAX' ) )
-	define( 'DOING_AJAX', true);
-@header( 'Content-Type: text/html; charset=' . get_option( 'blog_charset' ));
+/**
+ * Handle Ajax requests.
+ *
+ * @package P2
+ */
+
+if ( defined('DOING_AJAX') && DOING_AJAX && isset( $_REQUEST['p2ajax'] ) ) {
+	add_action( 'init', array( 'P2Ajax', 'dispatch' ) );
+}
 
 class P2Ajax {
 	function dispatch() {
-		$action = isset( $_REQUEST['action'] )? $_REQUEST['action'] : '';
-		add_action( 'wp_ajax_'.$action, $action );
+		$action = isset( $_REQUEST['action'] ) ? $_REQUEST['action'] : '';
+
 		do_action( "p2_ajax", $action );
 		if ( is_callable( array( 'P2Ajax', $action ) ) )
 			call_user_func( array( 'P2Ajax', $action ) );
@@ -25,33 +31,40 @@ class P2Ajax {
 		if ( !current_user_can( 'edit_post', $post_id ) ) {
 			die( '<p>'.__( 'Error: not allowed to edit post.', 'p2' ).'</p>' );
 		}
-		$post = get_post( $post_id );
+
+		// Don't treat the post differently based on user's visual editor setting.
+		// If the user has disabled the visual editor, the post_content goes through an "extra" esc_textarea().
+		add_filter( 'user_can_richedit', '__return_true' );
+		$post = get_post( $post_id, OBJECT, 'edit' );
 
 		function get_tag_name( $tag ) {
 			return $tag->name;
 		}
 		$tags = array_map( 'get_tag_name', wp_get_post_tags( $post_id ) );
 
-		$categories = get_the_category( $post_id );
-		$category_slug = ( isset( $categories[0] ) ) ? $categories[0]->slug : '';
+		$post_format = p2_get_post_format( $post_id );
 
 		// handle page as post_type
 		if ( 'page' == $post->post_type ) {
-			$category_slug = 'page';
+			$post_format = '';
 			$tags = '';
 		}
+
+		add_filter( 'user_can_richedit', '__return_false' );
+		$post->post_content = apply_filters( 'the_editor_content', $post->post_content );
 
 		echo json_encode( array(
 			'title' => $post->post_title,
 			'content' => $post->post_content,
-			'type' => $category_slug,
+			'post_format' => $post_format,
+			'post_type' => $post->post_type,
 			'tags' => $tags,
 		) );
 	}
 
 	function tag_search() {
 		global $wpdb;
-		$term = $_GET['q'];
+		$term = $_GET['term'];
 		if ( false !== strpos( $term, ',' ) ) {
 			$term = explode( ',', $term );
 			$term = $term[count( $term ) - 1];
@@ -59,13 +72,26 @@ class P2Ajax {
 		$term = trim( $term );
 		if ( strlen( $term ) < 2 )
 			die(); // require 2 chars for matching
-		$results = $wpdb->get_col( "SELECT t.name FROM $wpdb->term_taxonomy AS tt INNER JOIN $wpdb->terms AS t ON tt.term_id = t.term_id WHERE tt.taxonomy = 'post_tag' AND t.name LIKE ( '%". like_escape( $wpdb->escape( $term ) ) . "%' )" );
-		echo join( $results, "\n" );
+
+		$tags = array();
+		$results = $wpdb->get_results( "SELECT name, count FROM $wpdb->term_taxonomy AS tt INNER JOIN $wpdb->terms AS t ON tt.term_id = t.term_id WHERE tt.taxonomy = 'post_tag' AND t.name LIKE ( '%". like_escape( $wpdb->escape( $term ) ) . "%' ) ORDER BY count DESC" );
+
+		foreach ( $results as $result ) {
+			$rterm = '/' . preg_quote( $term, '/' ) . '/i';
+			$label = preg_replace( $rterm, "<strong>$0</strong>", $result->name ) . " ($result->count)";
+
+			$tags[] = array(
+				'label' => $label,
+				'value' => $result->name,
+			);
+		}
+
+		echo json_encode( $tags );
 	}
 
 	function logged_in_out() {
-			check_ajax_referer( 'ajaxnonce', '_loggedin' );
-			echo is_user_logged_in()? 'logged_in' : 'not_logged_in';
+		check_ajax_referer( 'ajaxnonce', '_loggedin' );
+		echo is_user_logged_in() ? 'logged_in' : 'not_logged_in';
 	}
 
 	function get_comment() {
@@ -76,7 +102,7 @@ class P2Ajax {
 		$comment_id = $_GET['comment_ID'];
 		$comment_id = substr( $comment_id, strpos( $comment_id, '-' ) + 1);
 		$comment = get_comment($comment_id);
-		echo $comment->comment_content;
+		echo apply_filters( 'p2_get_comment_content', $comment->comment_content, $comment_id );
 	}
 
 	function save_post() {
@@ -97,10 +123,8 @@ class P2Ajax {
 
 		$new_post_content = $_POST['content'];
 
-		$new_post_content = p2_list_creator( $new_post_content );
-
-		/* Add the quote citation to the content if it exists */
-		if ( !empty( $_POST['citation'] ) && 'quote' == $category_slug ) {
+		// Add the quote citation to the content if it exists
+		if ( ! empty( $_POST['citation'] ) && 'quote' == $post_format ) {
 			$new_post_content = '<p>' . $new_post_content . '</p><cite>' . $_POST['citation'] . '</cite>';
 		}
 
@@ -111,7 +135,7 @@ class P2Ajax {
 		if ( ! empty( $new_post_title ) )
 			$post_title = $new_post_title;
 		else
-			$post_title = prologue_title_from_content( $new_post_content );
+			$post_title = p2_title_from_content( $new_post_content );
 
 		$post = wp_update_post( array(
 			'post_title'	=> $post_title,
@@ -119,15 +143,16 @@ class P2Ajax {
 			'post_modified'	=> current_time( 'mysql' ),
 			'post_modified_gmt'	=> current_time( 'mysql', 1),
 			'ID' => $post_id
-		));
+		) );
 
 		$tags = wp_set_post_tags( $post_id, $new_tags );
 
 		$post = get_post( $post );
+		$GLOBALS['post'] = $post;
 
 		if ( !$post ) die( '-1' );
 
-		if ( 'quote' == $category_slug )
+		if ( 'quote' == $post_format )
 			$content = apply_filters( 'p2_get_quote_content', $post->post_content );
 		else
 			$content = apply_filters( 'the_content', $post->post_content );
@@ -137,7 +162,6 @@ class P2Ajax {
 			'content' => $content,
 			'tags' => get_tags_with_count( $post, '', __( '<br />Tags:' , 'p2' ) . ' ', ', ', ' &nbsp;' ),
 		) );
-
 	}
 
 	function save_comment() {
@@ -156,19 +180,19 @@ class P2Ajax {
 
 		$comment_content = $_POST['comment_content'];
 
-		$comment = wp_update_comment( array(
+		wp_update_comment( array(
 			'comment_content'	=> $comment_content,
 			'comment_ID' => $comment_id
 		));
 
 		$comment = get_comment( $comment_id );
-		echo apply_filters( 'comment_text', $comment->comment_content );
+		echo apply_filters( 'comment_text', $comment->comment_content, $comment );
 	}
 
 	function new_post() {
 		global $user_ID;
 
-		if ( 'POST' != $_SERVER['REQUEST_METHOD'] || empty( $_POST['action'] ) || $_POST['action'] != 'new_post' ) {
+		if ( empty( $_POST['action'] ) || $_POST['action'] != 'new_post' ) {
 		    die( '-1' );
 		}
 		if ( !is_user_logged_in() ) {
@@ -179,51 +203,49 @@ class P2Ajax {
 
 			die( '<p>'.__( 'Error: not allowed to post.', 'p2' ).'</p>' );
 		}
+
 		check_ajax_referer( 'ajaxnonce', '_ajax_post' );
-		$user = wp_get_current_user();
-		$user_id		= $user->ID;
-		$post_content	= $_POST['posttext'];
-		$tags			= trim( $_POST['tags'] );
-		$title = $_POST['post_title'];
+
+		$user           = wp_get_current_user();
+		$user_id        = $user->ID;
+		$post_content   = $_POST['posttext'];
+		$tags           = trim( $_POST['tags'] );
+		$title          = $_POST['post_title'];
+		$post_type      = isset( $_POST['post_type'] ) ? $_POST['post_type'] : 'post';
 
 		// Strip placeholder text for tags
 		if ( __( 'Tag it', 'p2' ) == $tags )
 			$tags = '';
 
+		// For empty or placeholder text, create a nice title based on content
 		if ( empty( $title ) || __( 'Post Title', 'p2' ) == $title )
-			// For empty or placeholder text, create a nice title based on content
-	    	$post_title = prologue_title_from_content( $post_content );
+	    	$post_title = p2_title_from_content( $post_content );
 		else
 			$post_title = $title;
 
-		require_once ( ABSPATH . '/wp-admin/includes/taxonomy.php' );
-		require_once ( ABSPATH . WPINC . '/category.php' );
+		$post_format = 'status';
+		$accepted_post_formats = apply_filters( 'p2_accepted_post_cats', p2_get_supported_post_formats() ); // Keep 'p2_accepted_post_cats' filter for back compat (since P2 1.3.4)
+		if ( in_array( $_POST['post_format'], $accepted_post_formats ) )
+			$post_format = $_POST['post_format'];
 
-		$accepted_post_cats = apply_filters( 'p2_accepted_post_cats', array( 'post', 'quote', 'status', 'link' ) );
-		$post_cat = ( in_array( $_POST['post_cat'], $accepted_post_cats ) ) ? $_POST['post_cat'] : 'status';
-
-		if ( !category_exists( $post_cat ) )
-			wp_insert_category( array( 'cat_name' => $post_cat ) );
-
-		$post_cat = get_category_by_slug( $post_cat );
-
-		/* Add the quote citation to the content if it exists */
-		if ( !empty( $_POST['post_citation'] ) && 'quote' == $post_cat->slug ) {
+		// Add the quote citation to the content if it exists
+		if ( ! empty( $_POST['post_citation'] ) && 'quote' == $post_format )
 			$post_content = '<p>' . $post_content . '</p><cite>' . $_POST['post_citation'] . '</cite>';
-		}
-
-		$post_content = p2_list_creator( $post_content );
 
 		$post_id = wp_insert_post( array(
-			'post_author'	=> $user_id,
-			'post_title'	=> $post_title,
-			'post_content'	=> $post_content,
-			'post_type'		=> $post_type,
-			'post_category' => array( $post_cat->cat_ID ),
-			'tags_input'	=> $tags,
-			'post_status'	=> 'publish'
+			'post_author'   => $user_id,
+			'post_title'    => $post_title,
+			'post_content'  => $post_content,
+			'post_type'     => 'post',
+			'tags_input'    => $tags,
+			'post_status'   => 'publish'
 		) );
-		echo $post_id ? $post_id : '0';
+
+		if ( empty( $post_id ) )
+			echo '0';
+
+		set_post_format( $post_id, $post_format );
+		echo $post_id;
 	}
 
 	function get_latest_posts() {
@@ -250,7 +272,8 @@ class P2Ajax {
 
 			$number_of_new_posts++;
 			$post_request_ajax = true;
-			require( dirname( dirname( __FILE__ ) ) . '/entry.php' );
+
+			p2_load_entry( false );
 	    endwhile;
 	   	$posts_html = ob_get_clean();
 
@@ -267,7 +290,7 @@ class P2Ajax {
 	}
 
 	function new_comment() {
-		if ( 'POST' != $_SERVER['REQUEST_METHOD'] || empty( $_POST['action'] ) || $_POST['action'] != 'new_comment' )
+		if ( empty( $_POST['action'] ) || $_POST['action'] != 'new_comment' )
 		    die();
 
 		check_ajax_referer( 'ajaxnonce', '_ajax_post' );
@@ -363,8 +386,11 @@ class P2Ajax {
 			foreach ($comments as $comment) {
 				// Setup comment html if post is visible
 				$comment_html = '';
-				if ( in_array( $comment->comment_post_ID, $visible_posts ) )
-					$comment_html = p2_comments($comment, array( 'max_depth' => $max_depth, 'before' => ' | ' ), $depth, false);
+				if ( in_array( $comment->comment_post_ID, $visible_posts ) ) {
+					ob_start();
+					p2_comments($comment, array( 'max_depth' => $max_depth, 'before' => ' | ' ), $depth );
+					$comment_html = ob_get_clean();
+				}
 
 				// Setup widget html if widget is visible
 				$comment_widget_html = '';
