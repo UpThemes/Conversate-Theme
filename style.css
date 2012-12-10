@@ -1267,21 +1267,21 @@ div.entry {
   position: relative;
   background: #f1f1f1;
 }
-#post-types #status span {
-  background: url(images/ico_speech_bubble.png) 4px center no-repeat;
-  padding: 3px 4px 3px 26px;
+#post-types #status {
+  background: url(images/ico_speech_bubble.png) 15px center no-repeat;
+  padding-left: 38px;
 }
-#post-types #quote span {
-  background: url(images/ico_quote.png) 4px center no-repeat;
-  padding: 3px 4px 3px 26px;
+#post-types #quote {
+  background: url(images/ico_quote.png) 15px center no-repeat;
+  padding-left: 38px;
 }
-#post-types #link span {
-  background: url(images/ico_link.png) 4px center no-repeat;
-  padding: 3px 4px 3px 26px;
+#post-types #link {
+  background: url(images/ico_link.png) 15px center no-repeat;
+  padding-left: 38px;
 }
-#post-types #post span {
-  background: url(images/ico_blog_post.png) 4px center no-repeat;
-  padding: 3px 4px 3px 26px;
+#post-types #post {
+  background: url(images/ico_blog_post.png) 15px center no-repeat;
+  padding-left: 38px;
 }
 
 .discussion p {

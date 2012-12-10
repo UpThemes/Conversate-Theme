@@ -1154,21 +1154,21 @@ div.entry {
     position: relative;
     background: #f1f1f1;
   }
-  #status span {
-    background: url(images/ico_speech_bubble.png) 4px center no-repeat;
-    padding: 3px 4px 3px 26px;
+  #status {
+    background: url(images/ico_speech_bubble.png) 15px center no-repeat;
+    padding-left: 38px;
   }
-  #quote span {
-    background: url(images/ico_quote.png) 4px center no-repeat;
-    padding: 3px 4px 3px 26px;
+  #quote {
+    background: url(images/ico_quote.png) 15px center no-repeat;
+    padding-left: 38px;
   }
-  #link span {
-    background: url(images/ico_link.png) 4px center no-repeat;
-    padding: 3px 4px 3px 26px;
+  #link {
+    background: url(images/ico_link.png) 15px center no-repeat;
+    padding-left: 38px;
   }
-  #post span {
-    background: url(images/ico_blog_post.png) 4px center no-repeat;
-    padding: 3px 4px 3px 26px;
+  #post {
+    background: url(images/ico_blog_post.png) 15px center no-repeat;
+    padding-left: 38px;
   }
 }
 
