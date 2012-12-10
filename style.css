@@ -257,6 +257,12 @@ dt {
   padding-left: 20px;
 }
 
+#header {
+  -webkit-box-shadow: none !important;
+  -moz-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
 #header #user_login {
   float: right;
   margin-top: 20px;

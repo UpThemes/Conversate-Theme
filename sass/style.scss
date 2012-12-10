@@ -178,6 +178,10 @@ dt {
   padding-left: 20px;
 }
 
+#header{
+  @include box-shadow(none !important);
+}
+
 #header #user_login {
   float: right;
   margin-top: 20px;
